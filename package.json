@@ -1,0 +1,8 @@
+{
+  "name": "openrouter-side-translator",
+  "version": "1.0.0",
+  "private": false,
+  "scripts": {
+    "test": "node test/check-static.mjs"
+  }
+}

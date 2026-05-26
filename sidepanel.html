@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenRouter Translator</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">OpenRouter / Gemini 2.5 Flash Lite</p>
+          <h1>翻译面板</h1>
+        </div>
+        <button class="icon-button" id="settingsToggle" type="button" title="设置 API Key" aria-label="设置 API Key">
+          ⚙
+        </button>
+      </header>
+
+      <section class="settings" id="settingsPanel" hidden>
+        <label class="field">
+          <span>OpenRouter API Key</span>
+          <input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="settings-actions">
+          <button class="secondary" id="saveKeyButton" type="button">保存</button>
+          <button class="ghost" id="resetKeyButton" type="button">清除 Key</button>
+        </div>
+        <p class="hint">API Key 仅保存在本机 Chrome storage。浏览器扩展无法真正隐藏前端 API Key；如需更高安全性，应改为服务端代理。</p>
+      </section>
+
+      <section class="mode-switch" aria-label="翻译模式">
+        <label>
+          <input type="radio" name="mode" value="direct" checked />
+          <span>直接翻译</span>
+        </label>
+        <label>
+          <input type="radio" name="mode" value="prompt" />
+          <span>提示模式</span>
+        </label>
+      </section>
+
+      <section class="workspace">
+        <label class="field">
+          <span>待翻译文本</span>
+          <textarea id="sourceText" rows="10" placeholder="粘贴或输入要翻译的内容"></textarea>
+        </label>
+
+        <label class="field" id="requirementField" hidden>
+          <span>要求</span>
+          <textarea id="requirementText" rows="4" placeholder="例如：翻译成日语；语气更正式；保留 Markdown 格式"></textarea>
+        </label>
+
+        <div class="toolbar">
+          <button id="translateButton" type="button">翻译</button>
+          <button class="secondary" id="copyButton" type="button">复制结果</button>
+          <button class="ghost" id="clearButton" type="button">清空</button>
+        </div>
+
+        <div class="status" id="statusText" role="status" aria-live="polite"></div>
+
+        <section class="stats-panel" aria-label="使用统计">
+          <div class="stats-header">
+            <h2>统计</h2>
+            <button class="ghost small" id="resetStatsButton" type="button">重置</button>
+          </div>
+          <dl class="stats-grid">
+            <div>
+              <dt>输入 Token</dt>
+              <dd id="statsInputTokens">0</dd>
+            </div>
+            <div>
+              <dt>输出 Token</dt>
+              <dd id="statsOutputTokens">0</dd>
+            </div>
+            <div>
+              <dt>总 Token</dt>
+              <dd id="statsTotalTokens">0</dd>
+            </div>
+            <div>
+              <dt>估算费用</dt>
+              <dd id="statsTotalCost">$0.000000</dd>
+            </div>
+          </dl>
+          <p class="hint">按 $0.10/M 输入 token、$0.40/M 输出 token 估算。</p>
+        </section>
+
+        <label class="field">
+          <span>翻译结果</span>
+          <textarea id="resultText" rows="12" readonly placeholder="结果会保留在这里"></textarea>
+        </label>
+      </section>
+    </main>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

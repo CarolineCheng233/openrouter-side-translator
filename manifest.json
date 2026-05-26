@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "OpenRouter Side Translator",
+  "description": "Use OpenRouter Gemini 2.5 Flash Lite to translate text in a persistent Chrome side panel.",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "Open translator"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["sidePanel", "storage"],
+  "host_permissions": ["https://openrouter.ai/*"],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}

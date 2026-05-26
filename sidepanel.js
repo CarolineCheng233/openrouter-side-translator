@@ -19,11 +19,16 @@ const elements = {
   resetKeyButton: document.querySelector("#resetKeyButton"),
   modeInputs: [...document.querySelectorAll("input[name='mode']")],
   requirementField: document.querySelector("#requirementField"),
+  sourceLabel: document.querySelector("#sourceLabel"),
   sourceText: document.querySelector("#sourceText"),
   requirementText: document.querySelector("#requirementText"),
+  redditDirectionField: document.querySelector("#redditDirectionField"),
+  redditDirectionText: document.querySelector("#redditDirectionText"),
+  loadRedditButton: document.querySelector("#loadRedditButton"),
   translateButton: document.querySelector("#translateButton"),
   copyButton: document.querySelector("#copyButton"),
   clearButton: document.querySelector("#clearButton"),
+  resultLabel: document.querySelector("#resultLabel"),
   resultText: document.querySelector("#resultText"),
   statusText: document.querySelector("#statusText"),
   statsInputTokens: document.querySelector("#statsInputTokens"),
@@ -38,6 +43,7 @@ init();
 async function init() {
   elements.apiKeyInput.value = await getApiKey();
   renderStats(await getStats());
+  syncModeUi();
   bindEvents();
 }
 
@@ -64,12 +70,11 @@ function bindEvents() {
   });
 
   elements.modeInputs.forEach((input) => {
-    input.addEventListener("change", () => {
-      elements.requirementField.hidden = getMode() !== "prompt";
-    });
+    input.addEventListener("change", syncModeUi);
   });
 
   elements.translateButton.addEventListener("click", translate);
+  elements.loadRedditButton.addEventListener("click", loadCurrentRedditPost);
   elements.copyButton.addEventListener("click", copyResult);
   elements.clearButton.addEventListener("click", clearAll);
   elements.resetStatsButton.addEventListener("click", resetStats);
@@ -78,6 +83,7 @@ function bindEvents() {
 async function translate() {
   const text = elements.sourceText.value.trim();
   const requirement = elements.requirementText.value.trim();
+  const redditDirection = elements.redditDirectionText.value.trim();
   const mode = getMode();
 
   if (!text) {
@@ -90,13 +96,18 @@ async function translate() {
     return;
   }
 
+  if (mode === "reddit" && !text) {
+    setStatus("请先读取或粘贴 Reddit 帖子信息。", "error");
+    return;
+  }
+
   setBusy(true);
-  setStatus("正在翻译...");
+  setStatus(getWorkingStatus(mode));
 
   try {
-    const translation = await requestTranslation({ text, requirement, mode });
-    elements.resultText.value = translation;
-    setStatus("翻译完成。", "success");
+    const output = await requestTranslation({ text, requirement, redditDirection, mode });
+    elements.resultText.value = output;
+    setStatus(getDoneStatus(mode), "success");
   } catch (error) {
     setStatus(toUserMessage(error), "error");
   } finally {
@@ -104,7 +115,7 @@ async function translate() {
   }
 }
 
-async function requestTranslation({ text, requirement, mode }) {
+async function requestTranslation({ text, requirement, redditDirection, mode }) {
   const apiKey = await getApiKey();
   if (!apiKey) {
     throw new Error("MISSING_API_KEY");
@@ -121,7 +132,7 @@ async function requestTranslation({ text, requirement, mode }) {
     body: JSON.stringify({
       model: MODEL,
       temperature: 0.2,
-      messages: buildMessages({ text, requirement, mode })
+      messages: buildMessages({ text, requirement, redditDirection, mode })
     })
   });
 
@@ -139,7 +150,15 @@ async function requestTranslation({ text, requirement, mode }) {
   return content;
 }
 
-function buildMessages({ text, requirement, mode }) {
+function buildMessages({ text, requirement, redditDirection, mode }) {
+  if (mode === "understand") {
+    return buildUnderstandMessages(text);
+  }
+
+  if (mode === "reddit") {
+    return buildRedditMessages({ postContext: text, direction: redditDirection });
+  }
+
   const system = [
     "You are a professional translation engine.",
     "Return only the final translated text, with no explanations, labels, markdown fences, or extra notes.",
@@ -152,6 +171,36 @@ function buildMessages({ text, requirement, mode }) {
   const user = mode === "prompt"
     ? `Requirement:\n${requirement}\n\nSource text:\n${text}`
     : `Source text:\n${text}`;
+
+  return [
+    { role: "system", content: system },
+    { role: "user", content: user }
+  ];
+}
+
+function buildUnderstandMessages(text) {
+  return [
+    { role: "user", content: text }
+  ];
+}
+
+function buildRedditMessages({ postContext, direction }) {
+  const system = [
+    "You help draft Reddit comments in natural English.",
+    "Write like a real Reddit user participating in the thread, not like an assistant, marketer, or translator.",
+    "Default to English.",
+    "Match the subreddit topic, title, post body, and emotional tone.",
+    "If the user provides a reply direction, follow it closely; if not, choose a fitting angle yourself.",
+    "Keep the comment specific to the post, conversational, and concise.",
+    "Avoid generic praise, hashtags, corporate phrasing, and disclaimers.",
+    "Do not mention AI, prompts, translation, or that you are generating a reply.",
+    "Return only the final Reddit comment."
+  ].join(" ");
+
+  const user = [
+    `Reddit post context:\n${postContext}`,
+    `Reply direction from user:\n${direction || "No extra direction provided. Pick a natural, on-topic reply angle."}`
+  ].join("\n\n");
 
   return [
     { role: "system", content: system },
@@ -198,6 +247,152 @@ function toUserMessage(error) {
 
 function getMode() {
   return elements.modeInputs.find((input) => input.checked)?.value || "direct";
+}
+
+function syncModeUi() {
+  const mode = getMode();
+  const isUnderstandMode = mode === "understand";
+  const isRedditMode = mode === "reddit";
+
+  elements.requirementField.hidden = mode !== "prompt";
+  elements.redditDirectionField.hidden = !isRedditMode;
+  elements.loadRedditButton.hidden = !isRedditMode;
+  elements.sourceLabel.textContent = getSourceLabel(mode);
+  elements.resultLabel.textContent = isRedditMode ? "回帖草稿" : isUnderstandMode ? "生成结果" : "翻译结果";
+  elements.sourceText.placeholder = getSourcePlaceholder(mode);
+  elements.resultText.placeholder = isRedditMode ? "英文回帖草稿会保留在这里" : isUnderstandMode ? "生成结果会保留在这里" : "结果会保留在这里";
+  elements.translateButton.textContent = getActionLabel(mode);
+}
+
+function getSourceLabel(mode) {
+  if (mode === "reddit") {
+    return "Reddit 帖子信息";
+  }
+
+  if (mode === "understand") {
+    return "输入";
+  }
+
+  return "待翻译文本";
+}
+
+function getSourcePlaceholder(mode) {
+  if (mode === "reddit") {
+    return "点击读取当前帖子，或手动粘贴 Reddit 标题和正文";
+  }
+
+  if (mode === "understand") {
+    return "写下你的大概意思、场景或要 Gemini 帮你完成的事";
+  }
+
+  return "粘贴或输入要翻译的内容";
+}
+
+function getActionLabel(mode) {
+  if (mode === "reddit") {
+    return "生成回帖";
+  }
+
+  if (mode === "understand") {
+    return "生成";
+  }
+
+  return "翻译";
+}
+
+function getWorkingStatus(mode) {
+  if (mode === "reddit") {
+    return "正在生成回帖...";
+  }
+
+  return mode === "understand" ? "正在生成..." : "正在翻译...";
+}
+
+function getDoneStatus(mode) {
+  if (mode === "reddit") {
+    return "回帖已生成。";
+  }
+
+  return mode === "understand" ? "生成完成。" : "翻译完成。";
+}
+
+async function loadCurrentRedditPost() {
+  try {
+    setStatus("正在读取当前 Reddit 帖子...");
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab?.id) {
+      throw new Error("NO_ACTIVE_TAB");
+    }
+
+    if (!/https?:\/\/([^/]+\.)?reddit\.com\//i.test(tab.url || "")) {
+      throw new Error("NOT_REDDIT_PAGE");
+    }
+
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: extractRedditPostFromPage
+    });
+
+    if (!injection?.result?.title && !injection?.result?.body) {
+      throw new Error("NO_REDDIT_POST");
+    }
+
+    elements.sourceText.value = formatRedditPostContext(injection.result);
+    setStatus("已读取当前 Reddit 帖子。", "success");
+  } catch (error) {
+    setStatus(toRedditReadMessage(error), "error");
+  }
+}
+
+function extractRedditPostFromPage() {
+  const textOf = (selectors) => {
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      const text = element?.innerText?.trim() || element?.textContent?.trim();
+      if (text) {
+        return text.replace(/\s+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+      }
+    }
+    return "";
+  };
+
+  const meta = (name) => document.querySelector(`meta[property="${name}"], meta[name="${name}"]`)?.content?.trim() || "";
+  const post = document.querySelector("shreddit-post");
+
+  return {
+    title: post?.getAttribute("post-title") || textOf(["h1", "shreddit-title", ".title a.title"]) || meta("og:title"),
+    body: textOf([
+      "shreddit-post [slot='text-body']",
+      "shreddit-post div[slot='text-body']",
+      "[data-post-click-location='text-body']",
+      "[data-testid='post-content']",
+      ".usertext-body .md"
+    ]) || meta("og:description")
+  };
+}
+
+function formatRedditPostContext(post) {
+  return [
+    post.title ? `Title: ${post.title}` : "",
+    post.body ? `Post:\n${post.body}` : ""
+  ].filter(Boolean).join("\n\n");
+}
+
+function toRedditReadMessage(error) {
+  if (error.message === "NOT_REDDIT_PAGE") {
+    return "当前标签页不是 Reddit 帖子页面。";
+  }
+
+  if (error.message === "NO_REDDIT_POST") {
+    return "没有读取到 Reddit 帖子标题或正文，可以手动粘贴。";
+  }
+
+  if (error.message === "NO_ACTIVE_TAB") {
+    return "没有找到当前标签页。";
+  }
+
+  return "读取 Reddit 帖子失败，可以手动粘贴标题和正文。";
 }
 
 async function getApiKey() {
@@ -276,13 +471,20 @@ async function copyResult() {
 function clearAll() {
   elements.sourceText.value = "";
   elements.requirementText.value = "";
+  elements.redditDirectionText.value = "";
   elements.resultText.value = "";
   setStatus("");
 }
 
 function setBusy(isBusy) {
   elements.translateButton.disabled = isBusy;
-  elements.translateButton.textContent = isBusy ? "翻译中..." : "翻译";
+  if (isBusy) {
+    const mode = getMode();
+    elements.translateButton.textContent = mode === "reddit" ? "生成中..." : mode === "understand" ? "生成中..." : "翻译中...";
+    return;
+  }
+
+  syncModeUi();
 }
 
 function setStatus(message, type = "") {

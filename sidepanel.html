@@ -30,7 +30,7 @@
         <p class="hint">API Key 仅保存在本机 Chrome storage。浏览器扩展无法真正隐藏前端 API Key；如需更高安全性，应改为服务端代理。</p>
       </section>
 
-      <section class="mode-switch" aria-label="翻译模式">
+      <section class="mode-switch" aria-label="工作模式">
         <label>
           <input type="radio" name="mode" value="direct" checked />
           <span>直接翻译</span>
@@ -39,11 +39,19 @@
           <input type="radio" name="mode" value="prompt" />
           <span>提示模式</span>
         </label>
+        <label>
+          <input type="radio" name="mode" value="understand" />
+          <span>理解模式</span>
+        </label>
+        <label>
+          <input type="radio" name="mode" value="reddit" />
+          <span>Reddit</span>
+        </label>
       </section>
 
       <section class="workspace">
         <label class="field">
-          <span>待翻译文本</span>
+          <span id="sourceLabel">待翻译文本</span>
           <textarea id="sourceText" rows="10" placeholder="粘贴或输入要翻译的内容"></textarea>
         </label>
 
@@ -52,7 +60,13 @@
           <textarea id="requirementText" rows="4" placeholder="例如：翻译成日语；语气更正式；保留 Markdown 格式"></textarea>
         </label>
 
+        <label class="field" id="redditDirectionField" hidden>
+          <span>回复方向</span>
+          <textarea id="redditDirectionText" rows="4" placeholder="可选：写下你想表达的大概意思；不填则让 Gemini 自由发挥"></textarea>
+        </label>
+
         <div class="toolbar">
+          <button class="secondary" id="loadRedditButton" type="button" hidden>读取当前帖子</button>
           <button id="translateButton" type="button">翻译</button>
           <button class="secondary" id="copyButton" type="button">复制结果</button>
           <button class="ghost" id="clearButton" type="button">清空</button>
@@ -87,7 +101,7 @@
         </section>
 
         <label class="field">
-          <span>翻译结果</span>
+          <span id="resultLabel">翻译结果</span>
           <textarea id="resultText" rows="12" readonly placeholder="结果会保留在这里"></textarea>
         </label>
       </section>

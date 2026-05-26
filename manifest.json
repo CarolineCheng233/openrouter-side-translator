@@ -9,8 +9,13 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["sidePanel", "storage"],
-  "host_permissions": ["https://openrouter.ai/*"],
+  "permissions": ["sidePanel", "storage", "activeTab", "scripting", "tabs"],
+  "host_permissions": [
+    "https://openrouter.ai/*",
+    "https://www.reddit.com/*",
+    "https://reddit.com/*",
+    "https://old.reddit.com/*"
+  ],
   "side_panel": {
     "default_path": "sidepanel.html"
   }
